@@ -2017,3 +2017,360 @@ class ST2CSPC(nn.Module):
         return self.cv4(torch.cat((y1, y2), dim=1))
 
 ##### end of swin transformer v2 #####   
+#ACmix
+def position(H, W, is_cuda=True):
+    if is_cuda:
+        loc_w = torch.linspace(-1.0, 1.0, W).cuda().unsqueeze(0).repeat(H, 1)
+        loc_h = torch.linspace(-1.0, 1.0, H).cuda().unsqueeze(1).repeat(1, W)
+    else:
+        loc_w = torch.linspace(-1.0, 1.0, W).unsqueeze(0).repeat(H, 1)
+        loc_h = torch.linspace(-1.0, 1.0, H).unsqueeze(1).repeat(1, W)
+    loc = torch.cat([loc_w.unsqueeze(0), loc_h.unsqueeze(0)], 0).unsqueeze(0)
+    return loc
+
+
+def stride(x, stride):
+    b, c, h, w = x.shape
+    return x[:, :, ::stride, ::stride]
+
+
+def init_rate_half(tensor):
+    if tensor is not None:
+        tensor.data.fill_(0.5)
+
+
+def init_rate_0(tensor):
+    if tensor is not None:
+        tensor.data.fill_(0.)
+
+
+class ACmix(nn.Module):
+    def __init__(self, in_planes, out_planes, kernel_att=7, head=4, kernel_conv=3, stride=1, dilation=1):
+        super(ACmix, self).__init__()
+        self.in_planes = in_planes
+        self.out_planes = out_planes
+        self.head = head
+        self.kernel_att = kernel_att
+        self.kernel_conv = kernel_conv
+        self.stride = stride
+        self.dilation = dilation
+        self.rate1 = torch.nn.Parameter(torch.Tensor(1))
+        self.rate2 = torch.nn.Parameter(torch.Tensor(1))
+        self.head_dim = self.out_planes // self.head
+
+        self.conv1 = nn.Conv2d(in_planes, out_planes, kernel_size=1)
+        self.conv2 = nn.Conv2d(in_planes, out_planes, kernel_size=1)
+        self.conv3 = nn.Conv2d(in_planes, out_planes, kernel_size=1)
+        self.conv_p = nn.Conv2d(2, self.head_dim, kernel_size=1)
+
+        self.padding_att = (self.dilation * (self.kernel_att - 1) + 1) // 2
+        self.pad_att = torch.nn.ReflectionPad2d(self.padding_att)
+        self.unfold = nn.Unfold(kernel_size=self.kernel_att, padding=0, stride=self.stride)
+        self.softmax = torch.nn.Softmax(dim=1)
+
+        self.fc = nn.Conv2d(3 * self.head, self.kernel_conv * self.kernel_conv, kernel_size=1, bias=False)
+        self.dep_conv = nn.Conv2d(self.kernel_conv * self.kernel_conv * self.head_dim, out_planes,
+                                  kernel_size=self.kernel_conv, bias=True, groups=self.head_dim, padding=1,
+                                  stride=stride)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        init_rate_half(self.rate1)
+        init_rate_half(self.rate2)
+        kernel = torch.zeros(self.kernel_conv * self.kernel_conv, self.kernel_conv, self.kernel_conv)
+        for i in range(self.kernel_conv * self.kernel_conv):
+            kernel[i, i // self.kernel_conv, i % self.kernel_conv] = 1.
+        kernel = kernel.squeeze(0).repeat(self.out_planes, 1, 1, 1)
+        self.dep_conv.weight = nn.Parameter(data=kernel, requires_grad=True)
+        self.dep_conv.bias = init_rate_0(self.dep_conv.bias)
+
+    def forward(self, x):
+        q, k, v = self.conv1(x), self.conv2(x), self.conv3(x)
+        scaling = float(self.head_dim) ** -0.5
+        b, c, h, w = q.shape
+        h_out, w_out = h // self.stride, w // self.stride
+
+        # ### att
+        # ## positional encoding
+        pe = self.conv_p(position(h, w, x.is_cuda))
+
+        q_att = q.view(b * self.head, self.head_dim, h, w) * scaling
+        k_att = k.view(b * self.head, self.head_dim, h, w)
+        v_att = v.view(b * self.head, self.head_dim, h, w)
+
+        if self.stride > 1:
+            q_att = stride(q_att, self.stride)
+            q_pe = stride(pe, self.stride)
+        else:
+            q_pe = pe
+
+        unfold_k = self.unfold(self.pad_att(k_att)).view(b * self.head, self.head_dim,
+                                                         self.kernel_att * self.kernel_att, h_out,
+                                                         w_out)  # b*head, head_dim, k_att^2, h_out, w_out
+        unfold_rpe = self.unfold(self.pad_att(pe)).view(1, self.head_dim, self.kernel_att * self.kernel_att, h_out,
+                                                        w_out)  # 1, head_dim, k_att^2, h_out, w_out
+
+        att = (q_att.unsqueeze(2) * (unfold_k + q_pe.unsqueeze(2) - unfold_rpe)).sum(
+            1)  # (b*head, head_dim, 1, h_out, w_out) * (b*head, head_dim, k_att^2, h_out, w_out) -> (b*head, k_att^2, h_out, w_out)
+        att = self.softmax(att)
+
+        out_att = self.unfold(self.pad_att(v_att)).view(b * self.head, self.head_dim, self.kernel_att * self.kernel_att,
+                                                        h_out, w_out)
+        out_att = (att.unsqueeze(1) * out_att).sum(2).view(b, self.out_planes, h_out, w_out)
+
+        ## conv
+        f_all = self.fc(torch.cat(
+            [q.view(b, self.head, self.head_dim, h * w), k.view(b, self.head, self.head_dim, h * w),
+             v.view(b, self.head, self.head_dim, h * w)], 1))
+        f_conv = f_all.permute(0, 2, 1, 3).reshape(x.shape[0], -1, x.shape[-2], x.shape[-1])
+
+        out_conv = self.dep_conv(f_conv)
+
+        return self.rate1 * out_att + self.rate2 * out_conv
+
+
+
+#ACmixBlock
+class ACmixblock(nn.Module):
+    # Standard convolution
+    def __init__(self, in_planes, out_planes, k=1, s=1, p=None, g=1, act=True):  # ch_in, ch_out, kernel, stride, padding, groups
+        super(ACmixblock, self).__init__()
+        self.conv = ACmix(in_planes, out_planes, kernel_att=7, head=4, kernel_conv=3, stride=1, dilation=1)
+        self.bn = nn.BatchNorm2d(out_planes)
+        self.act = nn.ReLU(inplace=True) if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+
+    def forward(self, x):
+        return self.act(self.bn(self.conv(x)))
+
+    def fuseforward(self, x):
+        return self.act(self.conv(x))
+
+    
+#ResNet-ACmix
+class ResNet_ACmix(nn.Module):
+    # ResNet bottleneck
+    def __init__(self, c1, c2, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, shortcut, groups, expansion
+        super(ResNet_ACmix, self).__init__()
+        c_ = int(c2 * e)  # hidden channels
+        self.cv1 = Conv(c1, c_, 1, 1)
+        self.cv2 = ACmixblock(c_, c_, kernel_att=7, head=4, kernel_conv=3, stride=1, dilation=1)
+        self.cv3 = Conv(c_, c2, 1, 1)
+        self.add = shortcut and c1 == c2
+
+    def forward(self, x):
+        return x + self.cv3(self.cv2(self.cv1(x))) if self.add else self.cv3(self.cv2(self.cv1(x)))
+
+# AC-E-ELAN 
+class RepACmixblock(nn.Module):
+    # Represented convolution
+    # https://arxiv.org/abs/2101.03697
+
+    def __init__(self, c1, c2, k=3, s=1, p=None, g=1, act=True, deploy=False):
+        super(RepACmixblock, self).__init__()
+
+        self.deploy = deploy
+        self.groups = g
+        self.in_channels = c1
+        self.out_channels = c2
+
+        padding_11 = autopad(k, p) - k // 2
+
+        self.act = nn.SiLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+
+        if deploy:
+            self.rbr_reparam = ACmixblock(c1, c2, k, s, autopad(k, p), groups=g, bias=True)
+
+        else:
+            self.rbr_identity = (nn.BatchNorm2d(num_features=c1) if c2 == c1 and s == 1 else None)
+
+            self.rbr_dense = nn.Sequential(
+                nn.Conv2d(c1, c2, k, s, autopad(k, p), groups=g, bias=False),
+                nn.BatchNorm2d(num_features=c2),
+            )
+
+            self.rbr_1x1 = nn.Sequential(
+                nn.Conv2d( c1, c2, 1, s, padding_11, groups=g, bias=False),
+                nn.BatchNorm2d(num_features=c2),
+            )
+
+    def forward(self, inputs):
+        if hasattr(self, "rbr_reparam"):
+            return self.act(self.rbr_reparam(inputs))
+
+        if self.rbr_identity is None:
+            id_out = 0
+        else:
+            id_out = self.rbr_identity(inputs)
+
+        return self.act(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out)
+    
+    def get_equivalent_kernel_bias(self):
+        kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
+        kernel1x1, bias1x1 = self._fuse_bn_tensor(self.rbr_1x1)
+        kernelid, biasid = self._fuse_bn_tensor(self.rbr_identity)
+        return (
+            kernel3x3 + self._pad_1x1_to_3x3_tensor(kernel1x1) + kernelid,
+            bias3x3 + bias1x1 + biasid,
+        )
+
+    def _pad_1x1_to_3x3_tensor(self, kernel1x1):
+        if kernel1x1 is None:
+            return 0
+        else:
+            return nn.functional.pad(kernel1x1, [1, 1, 1, 1])
+
+    def _fuse_bn_tensor(self, branch):
+        if branch is None:
+            return 0, 0
+        if isinstance(branch, nn.Sequential):
+            kernel = branch[0].weight
+            running_mean = branch[1].running_mean
+            running_var = branch[1].running_var
+            gamma = branch[1].weight
+            beta = branch[1].bias
+            eps = branch[1].eps
+        else:
+            assert isinstance(branch, nn.BatchNorm2d)
+            if not hasattr(self, "id_tensor"):
+                input_dim = self.in_channels // self.groups
+                kernel_value = np.zeros(
+                    (self.in_channels, input_dim, 3, 3), dtype=np.float32
+                )
+                for i in range(self.in_channels):
+                    kernel_value[i, i % input_dim, 1, 1] = 1
+                self.id_tensor = torch.from_numpy(kernel_value).to(branch.weight.device)
+            kernel = self.id_tensor
+            running_mean = branch.running_mean
+            running_var = branch.running_var
+            gamma = branch.weight
+            beta = branch.bias
+            eps = branch.eps
+        std = (running_var + eps).sqrt()
+        t = (gamma / std).reshape(-1, 1, 1, 1)
+        return kernel * t, beta - running_mean * gamma / std
+
+    def repvgg_convert(self):
+        kernel, bias = self.get_equivalent_kernel_bias()
+        return (
+            kernel.detach().cpu().numpy(),
+            bias.detach().cpu().numpy(),
+        )
+
+    def fuse_conv_bn(self, conv, bn):
+
+        std = (bn.running_var + bn.eps).sqrt()
+        bias = bn.bias - bn.running_mean * bn.weight / std
+
+        t = (bn.weight / std).reshape(-1, 1, 1, 1)
+        weights = conv.weight * t
+
+        bn = nn.Identity()
+        conv = nn.Conv2d(in_channels = conv.in_channels,
+                              out_channels = conv.out_channels,
+                              kernel_size = conv.kernel_size,
+                              stride=conv.stride,
+                              padding = conv.padding,
+                              dilation = conv.dilation,
+                              groups = conv.groups,
+                              bias = True,
+                              padding_mode = conv.padding_mode)
+
+        conv.weight = torch.nn.Parameter(weights)
+        conv.bias = torch.nn.Parameter(bias)
+        return conv
+
+    def fuse_repvgg_block(self):    
+        if self.deploy:
+            return
+        print(f"RepConv.fuse_repvgg_block")
+                
+        self.rbr_dense = self.fuse_conv_bn(self.rbr_dense[0], self.rbr_dense[1])
+        
+        self.rbr_1x1 = self.fuse_conv_bn(self.rbr_1x1[0], self.rbr_1x1[1])
+        rbr_1x1_bias = self.rbr_1x1.bias
+        weight_1x1_expanded = torch.nn.functional.pad(self.rbr_1x1.weight, [1, 1, 1, 1])
+        
+        # Fuse self.rbr_identity
+        if (isinstance(self.rbr_identity, nn.BatchNorm2d) or isinstance(self.rbr_identity, nn.modules.batchnorm.SyncBatchNorm)):
+            # print(f"fuse: rbr_identity == BatchNorm2d or SyncBatchNorm")
+            identity_conv_1x1 = nn.Conv2d(
+                    in_channels=self.in_channels,
+                    out_channels=self.out_channels,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                    groups=self.groups, 
+                    bias=False)
+            identity_conv_1x1.weight.data = identity_conv_1x1.weight.data.to(self.rbr_1x1.weight.data.device)
+            identity_conv_1x1.weight.data = identity_conv_1x1.weight.data.squeeze().squeeze()
+            # print(f" identity_conv_1x1.weight = {identity_conv_1x1.weight.shape}")
+            identity_conv_1x1.weight.data.fill_(0.0)
+            identity_conv_1x1.weight.data.fill_diagonal_(1.0)
+            identity_conv_1x1.weight.data = identity_conv_1x1.weight.data.unsqueeze(2).unsqueeze(3)
+            # print(f" identity_conv_1x1.weight = {identity_conv_1x1.weight.shape}")
+
+            identity_conv_1x1 = self.fuse_conv_bn(identity_conv_1x1, self.rbr_identity)
+            bias_identity_expanded = identity_conv_1x1.bias
+            weight_identity_expanded = torch.nn.functional.pad(identity_conv_1x1.weight, [1, 1, 1, 1])            
+        else:
+            # print(f"fuse: rbr_identity != BatchNorm2d, rbr_identity = {self.rbr_identity}")
+            bias_identity_expanded = torch.nn.Parameter( torch.zeros_like(rbr_1x1_bias) )
+            weight_identity_expanded = torch.nn.Parameter( torch.zeros_like(weight_1x1_expanded) )            
+        
+
+        #print(f"self.rbr_1x1.weight = {self.rbr_1x1.weight.shape}, ")
+        #print(f"weight_1x1_expanded = {weight_1x1_expanded.shape}, ")
+        #print(f"self.rbr_dense.weight = {self.rbr_dense.weight.shape}, ")
+
+        self.rbr_dense.weight = torch.nn.Parameter(self.rbr_dense.weight + weight_1x1_expanded + weight_identity_expanded)
+        self.rbr_dense.bias = torch.nn.Parameter(self.rbr_dense.bias + rbr_1x1_bias + bias_identity_expanded)
+                
+        self.rbr_reparam = self.rbr_dense
+        self.deploy = True
+
+        if self.rbr_identity is not None:
+            del self.rbr_identity
+            self.rbr_identity = None
+
+        if self.rbr_1x1 is not None:
+            del self.rbr_1x1
+            self.rbr_1x1 = None
+
+        if self.rbr_dense is not None:
+            del self.rbr_dense
+            self.rbr_dense = None
+
+            
+#GAM attention mechanism 
+class GAM_Attention(nn.Module):
+    def __init__(self, in_channels, out_channels, rate=4):
+        super(GAM_Attention, self).__init__()
+ 
+        self.channel_attention = nn.Sequential(
+            nn.Linear(in_channels, int(in_channels / rate)),
+            nn.ReLU(inplace=True),
+            nn.Linear(int(in_channels / rate), in_channels)
+        )
+ 
+        self.spatial_attention = nn.Sequential(
+            nn.Conv2d(in_channels, int(in_channels / rate), kernel_size=7, padding=3),
+            nn.BatchNorm2d(int(in_channels / rate)),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(int(in_channels / rate), out_channels, kernel_size=7, padding=3),
+            nn.BatchNorm2d(out_channels)
+        )
+ 
+    def forward(self, x):
+        b, c, h, w = x.shape
+        x_permute = x.permute(0, 2, 3, 1).view(b, -1, c)
+        x_att_permute = self.channel_attention(x_permute).view(b, h, w, c)
+        x_channel_att = x_att_permute.permute(0, 3, 1, 2)
+ 
+        x = x * x_channel_att
+ 
+        x_spatial_att = self.spatial_attention(x).sigmoid()
+        out = x * x_spatial_att
+ 
+        return out
+ 
