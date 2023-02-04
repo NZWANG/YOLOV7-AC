@@ -1,0 +1,15 @@
+# COCO 2017 dataset http://cocodataset.org
+
+# download command/URL (optional)
+#download: bash ./scripts/get_coco.sh
+
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+train: /root/yolov7/Brackish/images/train  # 118287 images
+val:  /root/yolov7/Brackish/images/val  # 5000 images
+#test:  D:\relevant experiment\YOLO\yolov7-main\inference/test.txt  # 20288 of 40670 images, submit to https://competitions.codalab.org/competitions/20794
+
+# number of classes
+nc: 6
+
+# class names
+names: ['fish', 'small_fish', 'crab', 'shrimp','jellyfish','starfish']
