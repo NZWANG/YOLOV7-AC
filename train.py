@@ -533,9 +533,9 @@ def train(hyp, opt, device, tb_writer=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default=r'D:\relevant experiment\YOLO\yolov7-main/yolov7.pt', help='initial weights path')
-    parser.add_argument('--cfg', type=str, default=r'D:\relevant experiment\YOLO\yolov7-main\cfg\training/csc.yaml', help='model.yaml path')
-    parser.add_argument('--data', type=str, default=r'D:\relevant experiment\YOLO\yolov7-main\data/URPC.yaml', help='data.yaml path')
+    parser.add_argument('--weights', type=str, default='', help='initial weights path')
+    parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
+    parser.add_argument('--data', type=str, default='', help='data.yaml path')
     parser.add_argument('--hyp', type=str, default='data/hyp.scratch.p5.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--acmix', action='store_true', help='useacmix')
