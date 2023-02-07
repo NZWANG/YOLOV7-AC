@@ -40,6 +40,7 @@ def test(data,
          half_precision=True,
          trace=False,
          is_coco=False,
+         half =False,
          v5_metric=False):
     # Initialize/load model and set device
     training = model is not None
