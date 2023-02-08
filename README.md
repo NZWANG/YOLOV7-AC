@@ -15,4 +15,6 @@ ii. Download the experiment dataset from the link below, and put it into the dir
       Brackish:https://www.kaggle.com/datasets/aalborguniversity/brackish-dataset
 
 iii. Training
-      python train.py --workers 0 --device 0 --batch-size 16 --data data/URPC.yaml --img 640 640 --cfg cfg/training/yolov7-AC.yaml --weights '' --name yolov7 --hyp data/hyp.scratch.p5.yaml
+     
+     
+     python train.py --workers 0 --device 0 --batch-size 16 --data data/URPC.yaml --img 640 640 --cfg cfg/training/yolov7-AC.yaml --weights '' --name yolov7 --hyp data/hyp.scratch.p5.yaml
