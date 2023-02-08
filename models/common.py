@@ -2163,43 +2163,39 @@ class ResNet_ACmix(nn.Module):
 
 # AC-E-ELAN 
 class RepACmixblock(nn.Module):
-    
 
-    def __init__(self, c1, c2, k=3, s=1, p=None, g=1, act=True, deploy=False,kernel_att=7, head=4, kernel_conv=3, stride=1, dilation=1):
+    def __init__(self, c1, c2, k=3, s=1, p=None, g=1, act=True, deploy=False,kernel_att=7, head=4, dilation=1):
         super(RepACmixblock, self).__init__()
 
         self.deploy = deploy
         self.groups = g
         self.in_channels = c1
         self.out_channels = c2
-
-        padding_11 = autopad(k, p) - k // 2
-
-        self.act = nn.SiLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+        self.act = nn.ReLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
 
         if deploy:
-            self.rbr_reparam = ACmix(c1, c2)
+            self.rbr_reparam = ACmixblock(c1, c2)
 
         else:
             self.rbr_identity = (nn.BatchNorm2d(num_features=c1) if c2 == c1 and s == 1 else None)
 
-            self.rbr_dense = ACmix(c1, c2)
-                
-                
+            self.rbr_dense = ACmixblock(c1, c2)
+
             self.rbr_1x1 = nn.Sequential(
                ACmix( c1, c2),
                nn.BatchNorm2d(num_features=c2),
             )
     def forward(self, inputs):
         if hasattr(self, "rbr_reparam"):
-            return self.act(self.rbr_reparam(inputs))
+            return self.rbr_reparam(inputs)
 
         if self.rbr_identity is None:
             id_out = 0
         else:
             id_out = self.rbr_identity(inputs)
 
-        return self.act(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out)
+        return self.rbr_dense(inputs)  +  self.act(self.rbr_1x1(inputs) + id_out)
+    
             
 #GAM attention mechanism 
 class GAM_Attention(nn.Module):
