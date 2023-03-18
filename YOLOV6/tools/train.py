@@ -23,11 +23,11 @@ from yolov6.utils.general import increment_name, find_latest_checkpoint
 
 def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='YOLOv6 PyTorch Training', add_help=add_help)
-    parser.add_argument('--data-path', default=r'D:\relevant experiment\YOLO\YOLOv6-main/data/water.yaml', type=str, help='path of dataset')
-    parser.add_argument('--conf-file', default=r'D:\relevant experiment\YOLO\YOLOv6-main/configs/yolov6s.py', type=str, help='experiments description file')
+    parser.add_argument('--data-path', default='', type=str, help='path of dataset')
+    parser.add_argument('--conf-file', default='', type=str, help='experiments description file')
     parser.add_argument('--img-size', default=640, type=int, help='train, val image size (pixels)')
-    parser.add_argument('--batch-size', default=2, type=int, help='total batch size for all GPUs')
-    parser.add_argument('--epochs', default=200, type=int, help='number of total epochs to run')
+    parser.add_argument('--batch-size', default=16, type=int, help='total batch size for all GPUs')
+    parser.add_argument('--epochs', default=300, type=int, help='number of total epochs to run')
     parser.add_argument('--workers', default=0, type=int, help='number of data loading workers (default: 8)')
     parser.add_argument('--device', default='0', type=str, help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--eval-interval', default=1, type=int, help='evaluate at every interval epochs')
