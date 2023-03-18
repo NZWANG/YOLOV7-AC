@@ -17,9 +17,9 @@ from yolov6.core.inferer import Inferer
 
 def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='YOLOv6 PyTorch Inference.', add_help=add_help)
-    parser.add_argument('--weights', type=str, default=r'D:\relevant experiment\YOLO\YOLOv6-main\tools\runs\train\exp\weights/best_ckpt.pt', help='model path(s) for inference.')
-    parser.add_argument('--source', type=str, default=r'D:\relevant experiment\YOLO\YOLOv6-main\water\images\val', help='the source path, e.g. image-file/dir.')
-    parser.add_argument('--yaml', type=str, default=r'D:\relevant experiment\YOLO\YOLOv6-main/data/water.yaml', help='data yaml file.')
+    parser.add_argument('--weights', type=str, default='', help='model path(s) for inference.')
+    parser.add_argument('--source', type=str, default='', help='the source path, e.g. image-file/dir.')
+    parser.add_argument('--yaml', type=str, default='', help='data yaml file.')
     parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='the image-size(h,w) in inference size.')
     parser.add_argument('--conf-thres', type=float, default=0.4, help='confidence threshold for inference.')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold for inference.')
