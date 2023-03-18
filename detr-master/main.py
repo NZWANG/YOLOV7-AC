@@ -80,7 +80,7 @@ def get_args_parser():
 
     # dataset parameters
     parser.add_argument('--dataset_file', default='coco')
-    parser.add_argument('--coco_path', type=str,default=r'D:\relevant experiment\detr-master\coco/')
+    parser.add_argument('--coco_path', type=str,default='')
     parser.add_argument('--coco_panoptic_path', type=str)
     parser.add_argument('--remove_difficult', action='store_true')
 
@@ -89,7 +89,7 @@ def get_args_parser():
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
     parser.add_argument('--seed', default=42, type=int)
-    parser.add_argument('--resume', default=r'D:\relevant experiment\detr-master/detr-r50_test_21.pth', help='resume from checkpoint')
+    parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--eval', action='store_true')
