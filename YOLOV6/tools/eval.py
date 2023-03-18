@@ -24,7 +24,7 @@ def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='YOLOv6 PyTorch Evalating', add_help=add_help)
     parser.add_argument('--data', type=str, default='', help='dataset.yaml path')
     parser.add_argument('--weights', type=str, default='', help='model.pt path(s)')
-    parser.add_argument('--batch-size', type=int, default=2, help='batch size')
+    parser.add_argument('--batch-size', type=int, default=16, help='batch size')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.03, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.65, help='NMS IoU threshold')
