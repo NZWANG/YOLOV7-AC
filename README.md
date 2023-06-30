@@ -7,7 +7,8 @@ If you find our codes helpful, please cite our following papers:
 
 
 
-If you have any question or collaboration suggestion about our method, please contact wangnizhuan1120@gmail.com.
+If you have any question，please check the issue of Frequency asking Questions . 
+If you have any collaboration suggestion about our method, please contact wangnizhuan1120@gmail.com.
 
 The codes of various networks were tested in Pytorch 1.7 version or higher versions(a little bit different from 0.8 version in some functions) in Python 3.8 on Ubuntu machines (may need minor changes on Windows). For the comparison models, e.g., EfficientDet, YOLOV5, YOLOV6, retinanet, SSD, etc., more information could be found at the corresponding sub-folders.
 
