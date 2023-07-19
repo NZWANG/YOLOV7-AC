@@ -2143,89 +2143,89 @@ class ACmixblock(nn.Module):
     def forward(self, x):
         return self.act(self.bn(self.conv(x)))
 
-    def fuseforward(self, x):
-        return self.act(self.conv(x))
+deffuseforward(self, x):
+returnself.act(self.conv(x))
 
-    
+
 #ResNet-ACmix
-class ResNet_ACmix(nn.Module):
-    # ResNet bottleneck
-    def __init__(self, c1, c2, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, shortcut, groups, expansion
-        super(ResNet_ACmix, self).__init__()
-        c_ = int(c2 * e)  # hidden channels
-        self.cv1 = Conv(c1, c_, 1, 1)
-        self.cv2 = ACmixblock(c_, c_, kernel_att=7, head=4, kernel_conv=3, stride=1, dilation=1)
-        self.cv3 = Conv(c_, c2, 1, 1)
-        self.add = shortcut and c1 == c2
+classResNet_ACmix(nnModule):
+# ResNet bottleneck
+def__init__(self, c1, c2, shortcut=True, g= one, e=0.5):# ch_in, ch_out, shortcut, groups, expansion
+super(ResNet_ACmix, self) .__init__()
+c_ =int(c2 * e)# hidden channels
+self.cv1=Conv(c1, c_, one , one)
+self.cv2=ACmixblock(c_, c_)
+self.cv3=Conv(c_, c2, one , one)
+self.add= shortcut和c1 == c2
 
-    def forward(self, x):
-        return x + self.cv3(self.cv2(self.cv1(x))) if self.add else self.cv3(self.cv2(self.cv1(x)))
+defforward(self, x):
+returnx + self.cv3(self.cv2(self.cv1(x)))ifself.addelseself.cv3(self.cv2(self.cv1(x)))
 
-# AC-E-ELAN 
-class RepACmixblock(nn.Module):
+# AC-E-ELAN
+classRepACmixblock(nnModule):
 
-    def __init__(self, c1, c2, k=3, s=1, p=None, g=1, act=True, deploy=False,kernel_att=7, head=4, dilation=1):
-        super(RepACmixblock, self).__init__()
+def__init__(self, c1, c2, k=3, s= one, p=None, g= one, act=True, deploy=False,kernel_att=7, head= four, dilation= one):
+super(RepACmixblock, self) .__init__()
 
-        self.deploy = deploy
-        self.groups = g
-        self.in_channels = c1
-        self.out_channels = c2
-        self.act = nn.ReLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+self.deploy= deploy
+self.groups= g
+self.in_channels= c1
+self.out_channels= c2
+self.act= nn.ReLU()ifactisTrueelse(actifisinstance(act, nn.Module)elsennIdentity())
 
-        if deploy:
-            self.rbr_reparam = ACmixblock(c1, c2)
+ifdeploy:
+self.rbr_reparam=ACmixblock(c1、c2)
 
-        else:
-            self.rbr_identity = (nn.BatchNorm2d(num_features=c1) if c2 == c1 and s == 1 else None)
+else:
+self. rbr标识=(nn 批次标准2d(num_features=c1)ifc2 == c1和s == oneelseNone)
 
-            self.rbr_dense = ACmixblock(c1, c2)
+self. 设置（_E）=ACmixblock(c1、c2)
 
-            self.rbr_1x1 = nn.Sequential(
-               ACmix( c1, c2),
-               nn.BatchNorm2d(num_features=c2),
-            )
-    def forward(self, inputs):
-        if hasattr(self, "rbr_reparam"):
-            return self.rbr_reparam(inputs)
+self. 1亿卢比= nn.相继的(
+ACMIX(c1、c2) ,
+nn 批次标准2d(num_features=c2) ,
+)
+defforward(自我，输入):
+if -l HASH[-c文件[-p前缀]][FILE1[文件2…]]hasattr(自我， “rbr_repaam”):
+returnself.rbr_reparam(输入)
 
-        if self.rbr_identity is None:
-            id_out = 0
-        else:
-            id_out = self.rbr_identity(inputs)
+ifself. rbr标识isNone:
+id_out = zero
+else:
+id_out = self. rbr标识(输入)
 
-        return self.rbr_dense(inputs)  +  self.act(self.rbr_1x1(inputs) + id_out)
-    
-            
-#GAM attention mechanism 
-class GAM_Attention(nn.Module):
-    def __init__(self, in_channels, out_channels, rate=4):
-        super(GAM_Attention, self).__init__()
- 
-        self.channel_attention = nn.Sequential(
-            nn.Linear(in_channels, int(in_channels / rate)),
-            nn.ReLU(inplace=True),
-            nn.Linear(int(in_channels / rate), in_channels)
-        )
- 
-        self.spatial_attention = nn.Sequential(
-            nn.Conv2d(in_channels, int(in_channels / rate), kernel_size=7, padding=3),
-            nn.BatchNorm2d(int(in_channels / rate)),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(int(in_channels / rate), out_channels, kernel_size=7, padding=3),
-            nn.BatchNorm2d(out_channels)
-        )
- 
-    def forward(self, x):
-        b, c, h, w = x.shape
-        x_permute = x.permute(0, 2, 3, 1).view(b, -1, c)
-        x_att_permute = self.channel_attention(x_permute).view(b, h, w, c)
-        x_channel_att = x_att_permute.permute(0, 3, 1, 2)
- 
-        x = x * x_channel_att
- 
-        x_spatial_att = self.spatial_attention(x).sigmoid()
-        out = x * x_spatial_att
- 
-        return out
- 
+returnself. 设置（_E）(输入)自我act(self. 1亿卢比(输入)输出（_O）)
+
+
+#GAM注意机制
+classGAM-注意(nnModule):
+def__init__(self, in_channels, out_channels, rate= four):
+super(GAM_注意，自己) .__init__()
+
+self.频道_关注= nn.相继的(
+nn线性的(通道内，int(in_channels/速率)) ,
+nnReLU(inplace=True) ,
+nn线性的(int(in_channels/速率)，在通道中（_C）)
+)
+
+self.空间注意力= nn.相继的(
+nn 转换2d(通道内，int(in_channels/速率), kernel_size=7, padding=3) ,
+nn 批次标准2d(int(in_channels/速率)) ,
+nnReLU(inplace=True) ,
+nn 转换2d(int(in_channels/速率), out_channels, kernel_size=7, padding=3) ,
+nn 批次标准2d(out_channels)
+)
+
+defforward(self, x):
+b, c, h, w = x.形状
+x_permute = x.排列( zero , two ,3 , one) .看法(b、- one，c)
+x_att_permute = self.频道_关注(x_静音) .看法(b、 h、w、c)
+x_channel_att = x_att_permute.排列( zero ,3 , one , two)
+
+x = x * x_channel_att
+
+x_spatial_att = self.空间注意力(x) .乙状结肠()
+out = x * x_spatial_att
+
+return外面的
+
