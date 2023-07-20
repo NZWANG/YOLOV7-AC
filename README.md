@@ -1,7 +1,7 @@
 # YOLOV7-AC
 The implemented core codes of YOLOV7-AC are open here, and the paper of YOLOV7-AC can be found at https://arxiv.org/abs/2302.06939. 
 
-If you find our codes helpful, please cite our following papers: 
+If you find our codes helpful, please star our project and cite our following papers: 
 
 [1] Liu, K., Sun, Q., Sun, D., Peng, L., Yang, M., & Wang, N. (2023). Underwater target detection based on improved YOLOv7. Journal of Marine Science and Engineering, 11(3), 677. 
 
