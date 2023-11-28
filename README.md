@@ -11,8 +11,9 @@ If you find our codes helpful, please star our project and cite our following pa
 
 
 
-If you have any question，please check the issue of Frequency Asking Questions first. 
-If you have any collaboration suggestion about our method, please contact wangnizhuan1120@gmail.com. Also, you can attend our YOLO-Series WeChat group by scanning the following QR code, and you can post messeages about YOLOV7-AC. 
+If you have any question，please check the issue of Frequency Asking Questions first. If you have any collaboration suggestion about our method, please contact wangnizhuan1120@gmail.com. 
+
+Also, you can attend our YOLO-Series WeChat group by scanning the following QR code, and you can post messeages about YOLOV7-AC. 
 
 
 The codes of various networks were tested in Pytorch 1.7 version or higher versions(a little bit different from 0.8 version in some functions) in Python 3.8 on Ubuntu machines (may need minor changes on Windows). For the comparison models, e.g., EfficientDet, YOLOV5, YOLOV6, retinanet, SSD, etc., more information could be found at the corresponding sub-folders.
