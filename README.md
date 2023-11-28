@@ -15,7 +15,7 @@ If you have any question，please check the issue of Frequency Asking Questions 
 
 Also, you can attend our YOLO-Series WeChat group by scanning the following QR code, and you can post messeages about YOLOV7-AC. 
 
-                                             ！[Alt text](yolo-series.jpg)
+![Alt text](yolo-series.jpg)
 
 
 
