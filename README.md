@@ -7,7 +7,7 @@ If you find our codes helpful, please star our project and cite our following pa
 
 [2] Liu, K., Tang, H., He, S., Yu, Q., Xiong, Y., & Wang, N. (2021, January). Performance validation of YOLO variants for object detection. In Proceedings of the 2021 International Conference on bioinformatics and intelligent computing (pp. 239-243).
 
-[3] Liu, K., & Wang, N. (2023). Ensemble Fusionof UnderwaterImage Enhancement (EFUIE) Model for Comprehensive Quality Improvement. Journal ofJiangsu Ocean University (Natural Science Edition),32(3):71-79. (In Chinese)
+[3] Liu, K., & Wang, N. (2023). Ensemble Fusionof UnderwaterImage Enhancement (EFUIE) Model for Comprehensive Quality Improvement. Journal of Jiangsu Ocean University (Natural Science Edition),32(3):71-79. (In Chinese)
 
 
 
